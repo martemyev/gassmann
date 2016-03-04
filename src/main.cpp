@@ -6,48 +6,6 @@
 #include <stdexcept>
 #include <vector>
 
-//const double K_clay = 20.9; // Bulk modulus of clay, GPa
-//const double K_quartz = 36.6; // Bulk modulus of quartz, GPa
-//const double rho_clay = 2.58; // Density of clay, g/cm^3
-//const double rho_quartz = 2.65; // Density of quartz, g/cm^3
-//const double F_clay = 0.7; // Volumetric fracture of clay in the mineral composition of the rock
-//const double F_quartz = 1. - F_clay; // We assume that the rock constists of quartz and clay
-
-//// Bulk modulus of mineral matrix computed according to Voigt-Reuss-Hill averaging.
-//// This value doesn't change during fluid substitution.
-//const double K_matrix = 0.5 * (F_clay*K_clay + F_quartz*K_quartz +
-//                               1. / (F_clay/K_clay + F_quartz/K_quartz));
-//// Density of mineral matrix computed by arithmetic averaging.
-//// This value doesn't change during fluid substitution.
-//const double rho_matrix = F_clay*rho_clay + F_quartz*rho_quartz;
-
-
-//const double Vp_water = 1.5; // P-wave velocity of water, km/s
-//const double rho_water = 1.0; // Density of water, g/cm^3
-//const double K_water = rho_water*Vp_water*Vp_water; // Bulk modulus of water, GPa
-
-
-//const double Vp_oil = 1.2; // P-wave velocity of oil, km/s
-//const double rho_oil = 0.6; // Density of oil, g/cm^3
-//const double K_oil = rho_oil*Vp_oil*Vp_oil; // Bulk modulus of oil, GPa
-
-
-//double K_mixfluid(double S_water) {
-//  const double S_oil = 1.0 - S_water;
-//  return 1.0 / (S_water/K_water + S_oil/K_oil);
-//}
-
-//double rho_mixfluid(double S_water) {
-//  const double S_oil = 1.0 - S_water;
-//  return S_water*rho_water + S_oil*rho_oil;
-//}
-
-//double K(double rho, double Vp, double Vs) {
-//  return rho * (Vp*Vp - 4./3.*Vs*Vs);
-//}
-
-
-
 const double RHO_WATER = 1000.0;
 const double VP_WATER  = 1500.0;
 const double VS_WATER  = 0.0;
@@ -56,12 +14,11 @@ const double RHO_OIL = 600.0;
 const double VP_OIL  = 1200.0;
 const double VS_OIL  = 0.0;
 
-const double K_QUARTZ = 36.6e+9;
-const double K_CLAY   = 20.9e+9;
-const double RHO_QUARTZ = 2650.0;
-const double F_SHALE  = 0.2;
-const double F_CLAY   = 0.7*F_SHALE;
+const double K_QUARTZ = 37e+9;
+const double K_CLAY   = 15e+9; // wet clay
+const double F_CLAY   = 0.15;  // fraction of clay
 const double F_QUARTZ = 1.0 - F_CLAY;
+const double RHO_QUARTZ = 2650.0;
 
 
 
@@ -125,6 +82,23 @@ int main(int argc, char **argv) {
   }
 
   try {
+
+    SeismicProperties water(RHO_WATER, VP_WATER, VS_WATER);
+    SeismicProperties oil(RHO_OIL, VP_OIL, VS_OIL);
+    double mineral_matrix_K = VoigtReussHill_averaging(F_CLAY, K_CLAY,
+                                                       F_QUARTZ, K_QUARTZ);
+    double grain_density = RHO_QUARTZ;
+
+    std::cout << "Constants (assumptions):\n"
+                 "Bulk modulus of the mineral matrix:\n"
+                 "  K of quartz   " << K_QUARTZ*1e-9 << " GPa\n"
+                 "  K of clay     " << K_CLAY*1e-9 << " GPa\n"
+                 "  F of quartz   " << F_QUARTZ*100 << " %\n"
+                 "  F of clay     " << F_CLAY*100 << " %\n"
+                 "  K of matrix   " << mineral_matrix_K*1e-9 << " GPa\n"
+                 "Grain density: " << grain_density << " kg/m^3\n";
+    std::cout << std::endl;
+
     std::string rho_file, vp_file, vs_file, phi_file, sat0_file, sat1_file;
     std::string rho_out_file, vp_out_file, vs_out_file;
     int dim = 2; // default dimension
@@ -180,12 +154,7 @@ int main(int argc, char **argv) {
     std::vector<double> vp_new_array(n_cells);
     std::vector<double> vs_new_array(n_cells);
 
-    SeismicProperties water(RHO_WATER, VP_WATER, VS_WATER);
-    SeismicProperties oil(RHO_OIL, VP_OIL, VS_OIL);
-    SeismicProperties mineral_matrix(F_CLAY, K_CLAY, F_QUARTZ, K_QUARTZ);
-    SeismicProperties grain(RHO_QUARTZ, 0., 0.);
-
-    Gassmann gassmann(water, oil, mineral_matrix, grain);
+    Gassmann gassmann(water, oil, mineral_matrix_K, grain_density);
     gassmann.compute_substituted(rho_array, vp_array, vs_array, sat0_array,
                                  sat1_array, phi_array, rho_new_array,
                                  vp_new_array, vs_new_array);

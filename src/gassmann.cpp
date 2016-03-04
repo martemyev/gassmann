@@ -1,5 +1,5 @@
 #include "gassmann.hpp"
-
+#include "utilities.hpp"
 
 void Gassmann::compute_substituted(const std::vector<double>& rho_array,
                                    const std::vector<double>& vp_array,
@@ -13,27 +13,34 @@ void Gassmann::compute_substituted(const std::vector<double>& rho_array,
 {
   const int n_values = rho_array.size();
 
+  double phi, K_fl_mix, rho_fl_mix, old_saturation, new_saturation;
+  std::vector<double> Kstar(n_values);
+  std::vector<double> Ksat(n_values);
+
   for (int i = 0; i < n_values; ++i)
   {
-    const double phi = phi_array[i];
+    phi = phi_array[i];
     const SeismicProperties old(rho_array[i], vp_array[i], vs_array[i]);
 
-    const double old_saturation = sat0_array[i];
-    double K_fl_mix   = SeismicProperties::bulk_modulus_fluid_mix(old_saturation, water.K, oil.K);
-    double rho_fl_mix = SeismicProperties::density_fluid_mix(old_saturation, water.rho, oil.rho);
+    old_saturation = sat0_array[i];
+    K_fl_mix   = bulk_modulus_fluid_mix(old_saturation, water.K, oil.K);
+    rho_fl_mix = density_fluid_mix(old_saturation, water.rho, oil.rho);
 
-    const double Kstar = SeismicProperties::bulk_modulus_porous_rock_frame(old.K, mineral_matrix.K, K_fl_mix, phi);
+    Kstar[i] = mineral_matrix_K; //bulk_modulus_porous_rock_frame(old.K, mineral_matrix_K, K_fl_mix, phi);
 
-    const double new_saturation = sat1_array[i];
-    K_fl_mix   = SeismicProperties::bulk_modulus_fluid_mix(new_saturation, water.K, oil.K);
-    rho_fl_mix = SeismicProperties::density_fluid_mix(new_saturation, water.rho, oil.rho);
+    new_saturation = sat1_array[i];
+    K_fl_mix   = bulk_modulus_fluid_mix(new_saturation, water.K, oil.K);
+    rho_fl_mix = density_fluid_mix(new_saturation, water.rho, oil.rho);
 
-    const double Ksat = SeismicProperties::bulk_modulus_saturated(Kstar, mineral_matrix.K, K_fl_mix, phi);
+    Ksat[i] = bulk_modulus_saturated(Kstar[i], mineral_matrix_K, K_fl_mix, phi);
 
-    rho_new_array[i] = SeismicProperties::bulk_density(grain.rho, rho_fl_mix, phi);
-    vp_new_array[i]  = SeismicProperties::compres_velocity(Ksat, old.G, rho_new_array[i]);
-    vs_new_array[i]  = SeismicProperties::shear_velocity(old.G, rho_new_array[i]);
+    rho_new_array[i] = bulk_density(grain_density, rho_fl_mix, phi);
+    vp_new_array[i]  = compres_velocity(Ksat[i], old.G, rho_new_array[i]);
+    vs_new_array[i]  = shear_velocity(old.G, rho_new_array[i]);
   }
+
+  write_binary("Kstar.bin", n_values, &Kstar[0]);
+  write_binary("Ksat.bin",  n_values, &Ksat[0]);
 }
 
 

@@ -8,8 +8,9 @@
 class Gassmann {
 public:
   Gassmann(SeismicProperties water_, SeismicProperties oil_,
-           SeismicProperties mineral_matrix_, SeismicProperties grain_)
-    : water(water_), oil(oil_), mineral_matrix(mineral_matrix_), grain(grain_)
+           double mineral_matrix_K_, double grain_density_)
+    : water(water_), oil(oil_), mineral_matrix_K(mineral_matrix_K_),
+      grain_density(grain_density_)
   {}
 
   void compute_substituted(const std::vector<double>& rho_array,
@@ -25,8 +26,8 @@ public:
 private:
   SeismicProperties water;
   SeismicProperties oil;
-  SeismicProperties mineral_matrix;
-  SeismicProperties grain;
+  double mineral_matrix_K;
+  double grain_density;
 };
 
 
